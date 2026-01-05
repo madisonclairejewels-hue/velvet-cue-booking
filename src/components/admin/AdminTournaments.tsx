@@ -156,9 +156,13 @@ export function AdminTournaments() {
               <div>
                 <Label>Entry Fee (₹)</Label>
                 <Input
-                  type="number"
-                  value={form.entry_fee}
-                  onChange={(e) => setForm({ ...form, entry_fee: Number(e.target.value) })}
+                  type="text"
+                  inputMode="numeric"
+                  value={form.entry_fee || ""}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/^0+/, "").replace(/\D/g, "");
+                    setForm({ ...form, entry_fee: value ? parseInt(value, 10) : 0 });
+                  }}
                   className="bg-muted/50 mt-1"
                 />
               </div>

@@ -1,41 +1,91 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Image, Plus, Trash2, Save, GripVertical } from "lucide-react";
+import { Image, Plus, Trash2, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useGallery, useCreateGalleryImage, useDeleteGalleryImage, useUpdateGalleryImage } from "@/hooks/useGallery";
+import { useGallery, useCreateGalleryImage, useDeleteGalleryImage } from "@/hooks/useGallery";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AdminGallery() {
   const { toast } = useToast();
   const { data: gallery, isLoading } = useGallery();
   const createGalleryImage = useCreateGalleryImage();
   const deleteGalleryImage = useDeleteGalleryImage();
-  const updateGalleryImage = useUpdateGalleryImage();
 
-  const [newImageUrl, setNewImageUrl] = useState("");
   const [newCaption, setNewCaption] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAddImage = async () => {
-    if (!newImageUrl) {
-      toast({ title: "Please enter an image URL", variant: "destructive" });
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPreviewUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUploadImage = async () => {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) {
+      toast({ title: "Please select an image", variant: "destructive" });
       return;
     }
 
-    await createGalleryImage.mutateAsync({
-      image_url: newImageUrl,
-      caption: newCaption || null,
-      order_index: gallery?.length || 0,
-    });
+    setUploading(true);
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    toast({ title: "Image added successfully!" });
-    setNewImageUrl("");
-    setNewCaption("");
+      // Upload to Supabase storage
+      const { error: uploadError, data } = await supabase.storage
+        .from("gallery")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("gallery")
+        .getPublicUrl(fileName);
+
+      // Save to database
+      await createGalleryImage.mutateAsync({
+        image_url: urlData.publicUrl,
+        caption: newCaption || null,
+        order_index: gallery?.length || 0,
+      });
+
+      toast({ title: "Image uploaded successfully!" });
+      setNewCaption("");
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleDeleteImage = async (id: string) => {
-    await deleteGalleryImage.mutateAsync(id);
-    toast({ title: "Image deleted!" });
+  const handleDeleteImage = async (id: string, imageUrl: string) => {
+    try {
+      // Extract filename from URL and delete from storage
+      const urlParts = imageUrl.split("/");
+      const fileName = urlParts[urlParts.length - 1];
+      await supabase.storage.from("gallery").remove([fileName]);
+      
+      // Delete from database
+      await deleteGalleryImage.mutateAsync(id);
+      toast({ title: "Image deleted!" });
+    } catch (error: any) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -55,15 +105,28 @@ export function AdminGallery() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-card border border-border/50 rounded-sm p-6"
       >
-        <h2 className="text-lg font-medium text-foreground mb-4">Add New Image</h2>
+        <h2 className="text-lg font-medium text-foreground mb-4">Upload New Image</h2>
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              placeholder="Image URL"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              className="bg-muted/50"
-            />
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+                id="gallery-upload"
+              />
+              <label
+                htmlFor="gallery-upload"
+                className="flex items-center justify-center gap-2 w-full h-12 bg-muted/50 border border-border/50 rounded-sm cursor-pointer hover:bg-muted/70 transition-colors"
+              >
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  {fileInputRef.current?.files?.[0]?.name || "Choose image from device"}
+                </span>
+              </label>
+            </div>
             <Input
               placeholder="Caption (optional)"
               value={newCaption}
@@ -73,28 +136,34 @@ export function AdminGallery() {
           </div>
           <Button
             variant="premium"
-            onClick={handleAddImage}
-            disabled={createGalleryImage.isPending}
+            onClick={handleUploadImage}
+            disabled={uploading || !fileInputRef.current?.files?.[0]}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            {createGalleryImage.isPending ? "Adding..." : "Add Image"}
+            {uploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                Upload Image
+              </>
+            )}
           </Button>
-        </div>
 
-        {/* Preview */}
-        {newImageUrl && (
-          <div className="mt-4">
-            <p className="text-sm text-muted-foreground mb-2">Preview:</p>
-            <img
-              src={newImageUrl}
-              alt="Preview"
-              className="w-32 h-32 object-cover rounded-sm border border-border/50"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = "/placeholder.svg";
-              }}
-            />
-          </div>
-        )}
+          {/* Preview */}
+          {previewUrl && (
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground mb-2">Preview:</p>
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="w-32 h-32 object-cover rounded-sm border border-border/50"
+              />
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* Gallery Grid */}
@@ -138,7 +207,7 @@ export function AdminGallery() {
                   <Button
                     size="icon"
                     variant="destructive"
-                    onClick={() => handleDeleteImage(img.id)}
+                    onClick={() => handleDeleteImage(img.id, img.image_url)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

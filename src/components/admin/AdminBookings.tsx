@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, parseISO, isFuture, startOfDay } from "date-fns";
 import { Calendar, Phone, User, Clock, Hash, Filter, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,29 @@ export function AdminBookings() {
   const { toast } = useToast();
   const { data: bookings, isLoading } = useAllBookings();
   const updateBooking = useUpdateBooking();
-  const deleteBooking = useDeleteBooking();
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Get today's bookings
+  const getTodaysBookings = () => {
+    if (!bookings) return [];
+    return bookings
+      .filter((b) => isToday(parseISO(b.booking_date)))
+      .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+  };
+
+  // Get upcoming bookings (future dates, not today)
+  const getUpcomingBookings = () => {
+    if (!bookings) return [];
+    const today = startOfDay(new Date());
+    return bookings
+      .filter((b) => {
+        const bookingDate = parseISO(b.booking_date);
+        return isFuture(bookingDate) && !isToday(bookingDate);
+      })
+      .sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
+  };
 
   const filterBookings = () => {
     if (!bookings) return [];
@@ -39,7 +58,11 @@ export function AdminBookings() {
         filtered = filtered.filter((b) => isToday(parseISO(b.booking_date)));
         break;
       case "upcoming":
-        filtered = filtered.filter((b) => new Date(b.booking_date) >= new Date());
+        const today = startOfDay(new Date());
+        filtered = filtered.filter((b) => {
+          const bookingDate = parseISO(b.booking_date);
+          return isFuture(bookingDate) && !isToday(bookingDate);
+        });
         break;
       case "confirmed":
         filtered = filtered.filter((b) => b.status === "confirmed");
@@ -49,7 +72,12 @@ export function AdminBookings() {
         break;
     }
 
-    // Sort by date (newest first)
+    // Sort by date (newest first for all, oldest first for upcoming)
+    if (filter === "upcoming") {
+      return filtered.sort(
+        (a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime()
+      );
+    }
     return filtered.sort(
       (a, b) => new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime()
     );
@@ -71,6 +99,8 @@ export function AdminBookings() {
   };
 
   const filteredBookings = filterBookings();
+  const todaysBookings = getTodaysBookings();
+  const upcomingBookings = getUpcomingBookings();
 
   const filters: { id: FilterType; label: string }[] = [
     { id: "all", label: "All" },
@@ -158,10 +188,74 @@ export function AdminBookings() {
         </div>
       </div>
 
-      {/* Bookings List */}
+      {/* Today's Bookings Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        className="bg-card border border-primary/30 rounded-sm p-6"
+      >
+        <h2 className="text-lg font-medium text-primary mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Today's Bookings ({todaysBookings.length})
+        </h2>
+
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : !todaysBookings.length ? (
+          <p className="text-muted-foreground py-4 text-center">No bookings for today.</p>
+        ) : (
+          <div className="space-y-3">
+            {todaysBookings.map((booking) => (
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
+                onComplete={handleComplete}
+                getDateLabel={getDateLabel}
+              />
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Upcoming Bookings Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-card border border-accent/30 rounded-sm p-6"
+      >
+        <h2 className="text-lg font-medium text-accent mb-4 flex items-center gap-2">
+          <Clock className="h-5 w-5" />
+          Upcoming Bookings ({upcomingBookings.length})
+        </h2>
+
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : !upcomingBookings.length ? (
+          <p className="text-muted-foreground py-4 text-center">No upcoming bookings.</p>
+        ) : (
+          <div className="space-y-3">
+            {upcomingBookings.map((booking) => (
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
+                onComplete={handleComplete}
+                getDateLabel={getDateLabel}
+              />
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* All Bookings (Filtered) */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
         className="bg-card border border-border/50 rounded-sm p-6"
       >
         <h2 className="text-lg font-medium text-foreground mb-4">
@@ -176,112 +270,137 @@ export function AdminBookings() {
         ) : (
           <div className="space-y-3">
             {filteredBookings.map((booking) => (
-              <div
+              <BookingCard
                 key={booking.id}
-                className={`bg-muted/30 border rounded-sm p-4 ${
-                  booking.status === "cancelled"
-                    ? "border-destructive/30 opacity-60"
-                    : booking.status === "completed"
-                    ? "border-primary/30"
-                    : "border-border/30"
-                }`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground font-medium">{booking.user_name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground text-sm">{booking.phone_number}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span
-                        className={`text-sm ${
-                          isToday(parseISO(booking.booking_date))
-                            ? "text-primary font-medium"
-                            : "text-foreground"
-                        }`}
-                      >
-                        {getDateLabel(booking.booking_date)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 justify-end text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {booking.time_slot}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Hash className="h-3 w-3" />
-                        Table {booking.table_number}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-3 py-1 text-xs rounded ${
-                        booking.status === "confirmed"
-                          ? "bg-primary/20 text-primary"
-                          : booking.status === "completed"
-                          ? "bg-accent/20 text-accent"
-                          : "bg-destructive/20 text-destructive"
-                      }`}
-                    >
-                      {booking.status}
-                    </span>
-
-                    {booking.status === "confirmed" && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleComplete(booking.id)}
-                          title="Mark as completed"
-                        >
-                          <Check className="h-4 w-4 text-primary" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleCancel(booking.id)}
-                          title="Cancel booking"
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </>
-                    )}
-
-                    {booking.status === "cancelled" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleConfirm(booking.id)}
-                        title="Reconfirm booking"
-                      >
-                        <Check className="h-4 w-4 text-primary" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {booking.notes && (
-                  <div className="mt-3 pt-3 border-t border-border/30">
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-medium">Notes:</span> {booking.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
+                booking={booking}
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
+                onComplete={handleComplete}
+                getDateLabel={getDateLabel}
+              />
             ))}
           </div>
         )}
       </motion.div>
+    </div>
+  );
+}
+
+// Extracted BookingCard component for reuse
+function BookingCard({
+  booking,
+  onConfirm,
+  onCancel,
+  onComplete,
+  getDateLabel,
+}: {
+  booking: any;
+  onConfirm: (id: string) => void;
+  onCancel: (id: string) => void;
+  onComplete: (id: string) => void;
+  getDateLabel: (dateStr: string) => string;
+}) {
+  return (
+    <div
+      className={`bg-muted/30 border rounded-sm p-4 ${
+        booking.status === "cancelled"
+          ? "border-destructive/30 opacity-60"
+          : booking.status === "completed"
+          ? "border-primary/30"
+          : "border-border/30"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span className="text-foreground font-medium">{booking.user_name}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground text-sm">{booking.phone_number}</span>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-right">
+          <div className="flex items-center gap-2 justify-end">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span
+              className={`text-sm ${
+                isToday(parseISO(booking.booking_date))
+                  ? "text-primary font-medium"
+                  : "text-foreground"
+              }`}
+            >
+              {getDateLabel(booking.booking_date)}
+            </span>
+          </div>
+          <div className="flex items-center gap-4 justify-end text-sm text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {booking.time_slot}
+            </span>
+            <span className="flex items-center gap-1">
+              <Hash className="h-3 w-3" />
+              Table {booking.table_number}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span
+            className={`px-3 py-1 text-xs rounded ${
+              booking.status === "confirmed"
+                ? "bg-primary/20 text-primary"
+                : booking.status === "completed"
+                ? "bg-accent/20 text-accent"
+                : "bg-destructive/20 text-destructive"
+            }`}
+          >
+            {booking.status}
+          </span>
+
+          {booking.status === "confirmed" && (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onComplete(booking.id)}
+                title="Mark as completed"
+              >
+                <Check className="h-4 w-4 text-primary" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onCancel(booking.id)}
+                title="Cancel booking"
+              >
+                <X className="h-4 w-4 text-destructive" />
+              </Button>
+            </>
+          )}
+
+          {booking.status === "cancelled" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onConfirm(booking.id)}
+              title="Reconfirm booking"
+            >
+              <Check className="h-4 w-4 text-primary" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {booking.notes && (
+        <div className="mt-3 pt-3 border-t border-border/30">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">Notes:</span> {booking.notes}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

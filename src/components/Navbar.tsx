@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
@@ -14,6 +15,7 @@ const navLinks = [
 ];
 
 export function Navbar() {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -76,6 +78,16 @@ export function Navbar() {
             >
               Book Now
             </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/admin")}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Shield className="h-4 w-4 mr-1" />
+              Admin
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -116,6 +128,19 @@ export function Navbar() {
                 onClick={() => handleNavClick("#booking")}
               >
                 Book Now
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  navigate("/admin");
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Admin
               </Button>
             </div>
           </motion.div>
