@@ -2,13 +2,14 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
+import { useSlideshow } from "@/hooks/useSlideshow";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
 
-const heroImages = [hero1, hero2, hero3];
+const defaultImages = [hero1, hero2, hero3];
 
-const taglines = [
+const defaultTaglines = [
   "Precision. Focus. Class.",
   "Where Legends Are Made.",
   "The Art of the Perfect Shot.",
@@ -16,13 +17,23 @@ const taglines = [
 
 export function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { data: slides } = useSlideshow();
+
+  // Use database slides if available, otherwise fall back to defaults
+  const heroImages = slides && slides.length > 0 
+    ? slides.map(s => s.image_url) 
+    : defaultImages;
+  
+  const taglines = slides && slides.length > 0 
+    ? slides.map(s => s.tagline || defaultTaglines[0]) 
+    : defaultTaglines;
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % heroImages.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, []);
+  }, [heroImages.length]);
 
   const scrollToBooking = () => {
     document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });

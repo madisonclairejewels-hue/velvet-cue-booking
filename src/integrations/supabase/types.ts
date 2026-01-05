@@ -182,6 +182,33 @@ export type Database = {
         }
         Relationships: []
       }
+      slideshow: {
+        Row: {
+          active: boolean | null
+          created_at: string
+          id: string
+          image_url: string
+          order_index: number | null
+          tagline: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string
+          id?: string
+          image_url: string
+          order_index?: number | null
+          tagline?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          order_index?: number | null
+          tagline?: string | null
+        }
+        Relationships: []
+      }
       tournament_registrations: {
         Row: {
           created_at: string

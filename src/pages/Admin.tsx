@@ -3,13 +3,14 @@ import { AdminAuthProvider, useAdminAuth } from "@/contexts/AdminAuthContext";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
+import { AdminSlideshow } from "@/components/admin/AdminSlideshow";
 import { AdminGallery } from "@/components/admin/AdminGallery";
 import { AdminTournaments } from "@/components/admin/AdminTournaments";
 import { AdminPricing } from "@/components/admin/AdminPricing";
 import { AdminBookings } from "@/components/admin/AdminBookings";
 import { AdminSettings } from "@/components/admin/AdminSettings";
 
-type Section = "dashboard" | "gallery" | "tournaments" | "pricing" | "bookings" | "settings";
+type Section = "dashboard" | "slideshow" | "gallery" | "tournaments" | "pricing" | "bookings" | "settings";
 
 function AdminContent() {
   const { isAuthenticated } = useAdminAuth();
@@ -24,6 +25,8 @@ function AdminContent() {
     switch (activeSection) {
       case "dashboard":
         return <AdminDashboard />;
+      case "slideshow":
+        return <AdminSlideshow />;
       case "gallery":
         return <AdminGallery />;
       case "tournaments":
