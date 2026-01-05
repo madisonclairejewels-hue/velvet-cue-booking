@@ -10,6 +10,7 @@ import {
   LogOut,
   X,
   Menu,
+  Images,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -23,6 +24,7 @@ interface AdminSidebarProps {
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "slideshow", label: "Slideshow", icon: Images },
   { id: "gallery", label: "Gallery Management", icon: Image },
   { id: "tournaments", label: "Tournament Management", icon: Trophy },
   { id: "pricing", label: "Pricing Management", icon: DollarSign },
