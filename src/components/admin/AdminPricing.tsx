@@ -164,9 +164,13 @@ export function AdminPricing() {
               <div>
                 <Label>Price (₹) *</Label>
                 <Input
-                  type="number"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                  type="text"
+                  inputMode="numeric"
+                  value={form.price || ""}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/^0+/, "").replace(/\D/g, "");
+                    setForm({ ...form, price: value ? parseInt(value, 10) : 0 });
+                  }}
                   className="bg-muted/50 mt-1"
                 />
               </div>
