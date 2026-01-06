@@ -14,6 +14,13 @@ export interface Booking {
   updated_at: string;
 }
 
+export interface BookingAvailability {
+  booking_date: string;
+  time_slot: string;
+  table_number: number;
+  status: string;
+}
+
 export interface BlockedSlot {
   id: string;
   blocked_date: string;
@@ -41,6 +48,26 @@ export const TIME_SLOTS = [
 
 export const TABLES = [1, 2, 3, 4, 5, 6];
 
+// Public hook: Uses the view that only exposes availability (no PII)
+export function useBookingAvailability(date?: string) {
+  return useQuery({
+    queryKey: ["booking-availability", date],
+    queryFn: async () => {
+      let query = supabase.from("booking_availability").select("*");
+      
+      if (date) {
+        query = query.eq("booking_date", date);
+      }
+      
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data as BookingAvailability[];
+    },
+  });
+}
+
+// Admin hook: Full booking details (requires admin auth)
 export function useBookings(date?: string) {
   return useQuery({
     queryKey: ["bookings", date],
@@ -59,6 +86,7 @@ export function useBookings(date?: string) {
   });
 }
 
+// Admin hook: All bookings (requires admin auth)
 export function useAllBookings() {
   return useQuery({
     queryKey: ["bookings", "all"],
@@ -108,6 +136,7 @@ export function useCreateBooking() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
     },
   });
 }
@@ -129,6 +158,7 @@ export function useUpdateBooking() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
     },
   });
 }
@@ -143,6 +173,7 @@ export function useDeleteBooking() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-availability"] });
     },
   });
 }
