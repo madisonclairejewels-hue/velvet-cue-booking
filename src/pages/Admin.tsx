@@ -8,9 +8,10 @@ import { AdminGallery } from "@/components/admin/AdminGallery";
 import { AdminTournaments } from "@/components/admin/AdminTournaments";
 import { AdminPricing } from "@/components/admin/AdminPricing";
 import { AdminBookings } from "@/components/admin/AdminBookings";
+import { AdminMessages } from "@/components/admin/AdminMessages";
 import { AdminSettings } from "@/components/admin/AdminSettings";
 
-type Section = "dashboard" | "slideshow" | "gallery" | "tournaments" | "pricing" | "bookings" | "settings";
+type Section = "dashboard" | "slideshow" | "gallery" | "tournaments" | "pricing" | "bookings" | "messages" | "settings";
 
 function AdminContent() {
   const { isAuthenticated } = useAdminAuth();
@@ -35,6 +36,8 @@ function AdminContent() {
         return <AdminPricing />;
       case "bookings":
         return <AdminBookings />;
+      case "messages":
+        return <AdminMessages />;
       case "settings":
         return <AdminSettings />;
       default:

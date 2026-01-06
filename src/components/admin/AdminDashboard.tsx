@@ -1,16 +1,36 @@
 import { motion } from "framer-motion";
 import { format, isToday, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
-import { Calendar, Trophy, Image, DollarSign, Users, TrendingUp } from "lucide-react";
-import { useAllBookings } from "@/hooks/useBookings";
+import { Calendar, Trophy, Image, DollarSign, Users, TrendingUp, Trash2 } from "lucide-react";
+import { useAllBookings, useDeleteBooking } from "@/hooks/useBookings";
 import { useTournaments } from "@/hooks/useTournaments";
 import { useGallery } from "@/hooks/useGallery";
 import { useAllPricing } from "@/hooks/usePricing";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function AdminDashboard() {
+  const { toast } = useToast();
   const { data: bookings } = useAllBookings();
+  const deleteBookingMutation = useDeleteBooking();
   const { data: tournaments } = useTournaments();
   const { data: gallery } = useGallery();
   const { data: pricing } = useAllPricing();
+
+  const handleDeleteBooking = async (id: string) => {
+    await deleteBookingMutation.mutateAsync(id);
+    toast({ title: "Booking deleted", variant: "destructive" });
+  };
 
   // Calculate stats
   const todaysBookings = bookings?.filter((b) => isToday(new Date(b.booking_date))) || [];
@@ -132,9 +152,35 @@ export function AdminDashboard() {
                     <p className="text-foreground font-medium text-sm">{booking.user_name}</p>
                     <p className="text-muted-foreground text-xs">{booking.phone_number}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-foreground text-sm">{booking.time_slot}</p>
-                    <p className="text-muted-foreground text-xs">Table #{booking.table_number}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-foreground text-sm">{booking.time_slot}</p>
+                      <p className="text-muted-foreground text-xs">Table #{booking.table_number}</p>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this booking for {booking.user_name}?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="bg-destructive hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               ))}
@@ -168,15 +214,41 @@ export function AdminDashboard() {
                       {format(new Date(booking.booking_date), "MMM d, yyyy")}
                     </p>
                   </div>
-                  <span
-                    className={`px-2 py-1 text-xs rounded ${
-                      booking.status === "confirmed"
-                        ? "bg-primary/20 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {booking.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2 py-1 text-xs rounded ${
+                        booking.status === "confirmed"
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this booking for {booking.user_name}?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="bg-destructive hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               ))}
             </div>

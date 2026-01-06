@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { format, isToday, isTomorrow, parseISO, isFuture, startOfDay } from "date-fns";
-import { Calendar, Phone, User, Clock, Hash, Filter, Check, X } from "lucide-react";
+import { Calendar, Phone, User, Clock, Hash, Filter, Check, X, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +24,7 @@ export function AdminBookings() {
   const { toast } = useToast();
   const { data: bookings, isLoading } = useAllBookings();
   const updateBooking = useUpdateBooking();
+  const deleteBookingMutation = useDeleteBooking();
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,6 +108,11 @@ export function AdminBookings() {
   const handleComplete = async (id: string) => {
     await updateBooking.mutateAsync({ id, status: "completed" });
     toast({ title: "Booking marked as completed!" });
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteBookingMutation.mutateAsync(id);
+    toast({ title: "Booking deleted", variant: "destructive" });
   };
 
   const filteredBookings = filterBookings();
@@ -212,6 +229,7 @@ export function AdminBookings() {
                 onConfirm={handleConfirm}
                 onCancel={handleCancel}
                 onComplete={handleComplete}
+                onDelete={handleDelete}
                 getDateLabel={getDateLabel}
               />
             ))}
@@ -244,6 +262,7 @@ export function AdminBookings() {
                 onConfirm={handleConfirm}
                 onCancel={handleCancel}
                 onComplete={handleComplete}
+                onDelete={handleDelete}
                 getDateLabel={getDateLabel}
               />
             ))}
@@ -276,6 +295,7 @@ export function AdminBookings() {
                 onConfirm={handleConfirm}
                 onCancel={handleCancel}
                 onComplete={handleComplete}
+                onDelete={handleDelete}
                 getDateLabel={getDateLabel}
               />
             ))}
@@ -292,12 +312,14 @@ function BookingCard({
   onConfirm,
   onCancel,
   onComplete,
+  onDelete,
   getDateLabel,
 }: {
   booking: any;
   onConfirm: (id: string) => void;
   onCancel: (id: string) => void;
   onComplete: (id: string) => void;
+  onDelete: (id: string) => void;
   getDateLabel: (dateStr: string) => string;
 }) {
   return (
@@ -391,6 +413,31 @@ function BookingCard({
               <Check className="h-4 w-4 text-primary" />
             </Button>
           )}
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="ghost" title="Delete booking">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this booking for {booking.user_name}? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDelete(booking.id)}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
