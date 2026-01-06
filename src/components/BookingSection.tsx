@@ -5,8 +5,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useBookings, useBlockedSlots, useCreateBooking, TIME_SLOTS, TABLES } from "@/hooks/useBookings";
-import { format, addDays, isBefore, startOfDay } from "date-fns";
+import { useBookingAvailability, useBlockedSlots, useCreateBooking, TIME_SLOTS, TABLES } from "@/hooks/useBookings";
+import { format, addDays } from "date-fns";
+import { z } from "zod";
+
+// Validation schema for booking form
+const bookingSchema = z.object({
+  user_name: z.string()
+    .trim()
+    .min(1, "Name is required")
+    .max(100, "Name must be less than 100 characters"),
+  phone_number: z.string()
+    .trim()
+    .regex(/^[+]?[0-9\s()-]{7,20}$/, "Please enter a valid phone number"),
+  booking_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+  time_slot: z.enum(TIME_SLOTS as [string, ...string[]], {
+    errorMap: () => ({ message: "Please select a valid time slot" }),
+  }),
+  table_number: z.number()
+    .int()
+    .min(1, "Invalid table number")
+    .max(6, "Invalid table number"),
+});
 
 export function BookingSection() {
   const { toast } = useToast();
@@ -16,8 +37,10 @@ export function BookingSection() {
   const [userName, setUserName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const { data: bookings } = useBookings(selectedDate);
+  // Use the public availability view (no PII exposed)
+  const { data: bookings } = useBookingAvailability(selectedDate);
   const { data: blockedSlots } = useBlockedSlots(selectedDate);
   const createBooking = useCreateBooking();
 
@@ -51,11 +74,28 @@ export function BookingSection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationErrors({});
 
-    if (!selectedDate || !selectedTimeSlot || !selectedTable || !userName || !phoneNumber) {
+    // Client-side validation
+    const validation = bookingSchema.safeParse({
+      user_name: userName,
+      phone_number: phoneNumber,
+      booking_date: selectedDate,
+      time_slot: selectedTimeSlot,
+      table_number: selectedTable,
+    });
+
+    if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        errors[field] = err.message;
+      });
+      setValidationErrors(errors);
+      
       toast({
-        title: "Missing Information",
-        description: "Please fill in all fields to complete your booking.",
+        title: "Validation Error",
+        description: Object.values(errors)[0],
         variant: "destructive",
       });
       return;
@@ -63,11 +103,11 @@ export function BookingSection() {
 
     try {
       await createBooking.mutateAsync({
-        user_name: userName,
-        phone_number: phoneNumber,
+        user_name: userName.trim(),
+        phone_number: phoneNumber.trim(),
         booking_date: selectedDate,
         time_slot: selectedTimeSlot,
-        table_number: selectedTable,
+        table_number: selectedTable!,
         notes: null,
       });
 
@@ -82,10 +122,18 @@ export function BookingSection() {
         setPhoneNumber("");
       }, 5000);
     } catch (error: any) {
-      if (error.message?.includes("unique_booking")) {
+      const errorMessage = error.message || "";
+      
+      if (errorMessage.includes("unique_booking")) {
         toast({
           title: "Slot Already Booked",
           description: "This time slot has just been booked. Please select another.",
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes("Invalid")) {
+        toast({
+          title: "Validation Error",
+          description: errorMessage,
           variant: "destructive",
         });
       } else {
@@ -293,11 +341,15 @@ export function BookingSection() {
                 <Input
                   type="text"
                   value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
+                  onChange={(e) => setUserName(e.target.value.slice(0, 100))}
                   placeholder="Enter your full name"
-                  className="bg-muted/50 border-border/50 focus:border-accent"
+                  className={`bg-muted/50 border-border/50 focus:border-accent ${validationErrors.user_name ? 'border-destructive' : ''}`}
                   required
+                  maxLength={100}
                 />
+                {validationErrors.user_name && (
+                  <p className="text-destructive text-xs mt-1">{validationErrors.user_name}</p>
+                )}
               </div>
 
               <div>
@@ -308,11 +360,15 @@ export function BookingSection() {
                 <Input
                   type="tel"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => setPhoneNumber(e.target.value.slice(0, 20))}
                   placeholder="+91 XXXXX XXXXX"
-                  className="bg-muted/50 border-border/50 focus:border-accent"
+                  className={`bg-muted/50 border-border/50 focus:border-accent ${validationErrors.phone_number ? 'border-destructive' : ''}`}
                   required
+                  maxLength={20}
                 />
+                {validationErrors.phone_number && (
+                  <p className="text-destructive text-xs mt-1">{validationErrors.phone_number}</p>
+                )}
               </div>
             </motion.div>
           )}

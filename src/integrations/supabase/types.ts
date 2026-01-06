@@ -306,7 +306,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      booking_availability: {
+        Row: {
+          booking_date: string | null
+          status: string | null
+          table_number: number | null
+          time_slot: string | null
+        }
+        Insert: {
+          booking_date?: string | null
+          status?: string | null
+          table_number?: number | null
+          time_slot?: string | null
+        }
+        Update: {
+          booking_date?: string | null
+          status?: string | null
+          table_number?: number | null
+          time_slot?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
