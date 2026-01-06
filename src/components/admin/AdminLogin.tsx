@@ -1,14 +1,20 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Lock, User, AlertCircle } from "lucide-react";
+import { Lock, Mail, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
 
 export function AdminLogin() {
-  const { login } = useAdminAuth();
-  const [username, setUsername] = useState("");
+  const { login, isLoading: authLoading } = useAdminAuth();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -16,19 +22,32 @@ export function AdminLogin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Validate inputs
+    const validation = loginSchema.safeParse({ email, password });
+    if (!validation.success) {
+      setError(validation.error.errors[0].message);
+      return;
+    }
+
     setIsLoading(true);
 
-    // Simulate network delay for realistic feel
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const success = login(username, password);
+    const result = await login(email, password);
     
-    if (!success) {
-      setError("Invalid username or password. Please try again.");
+    if (result.error) {
+      setError(result.error);
     }
     
     setIsLoading(false);
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -65,19 +84,20 @@ export function AdminLogin() {
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-foreground">
-                Username
+              <Label htmlFor="email" className="text-foreground">
+                Email
               </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter username"
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
                   className="bg-muted/50 pl-10"
                   required
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -93,9 +113,10 @@ export function AdminLogin() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Enter your password"
                   className="bg-muted/50 pl-10"
                   required
+                  autoComplete="current-password"
                 />
               </div>
             </div>
@@ -106,14 +127,21 @@ export function AdminLogin() {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
 
-          {/* Demo Hint */}
+          {/* Info Text */}
           <div className="mt-6 pt-6 border-t border-border/50">
             <p className="text-muted-foreground text-xs text-center">
-              Demo credentials: <span className="text-foreground">admin123</span> / <span className="text-foreground">admin</span>
+              Admin access is restricted. Contact the system administrator if you need access.
             </p>
           </div>
         </div>
