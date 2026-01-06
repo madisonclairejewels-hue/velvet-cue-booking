@@ -139,9 +139,15 @@ export function AdminLogin() {
           </form>
 
           {/* Info Text */}
-          <div className="mt-6 pt-6 border-t border-border/50">
+          <div className="mt-6 pt-6 border-t border-border/50 space-y-2">
             <p className="text-muted-foreground text-xs text-center">
               Admin access is restricted. Contact the system administrator if you need access.
+            </p>
+            <p className="text-muted-foreground text-xs text-center">
+              First time setup?{" "}
+              <a href="/admin/setup" className="text-primary hover:underline">
+                Create admin account
+              </a>
             </p>
           </div>
         </div>
