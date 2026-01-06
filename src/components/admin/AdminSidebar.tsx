@@ -11,6 +11,7 @@ import {
   X,
   Menu,
   Images,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -29,6 +30,7 @@ const menuItems = [
   { id: "tournaments", label: "Tournament Management", icon: Trophy },
   { id: "pricing", label: "Pricing Management", icon: DollarSign },
   { id: "bookings", label: "Bookings", icon: Calendar },
+  { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
