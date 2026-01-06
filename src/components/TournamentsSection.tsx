@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Calendar, Users, DollarSign, X } from "lucide-react";
+import { Trophy, Calendar, Users, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { useUpcomingTournaments, useRegisterForTournament, Tournament } from "@/hooks/useTournaments";
 import { format } from "date-fns";
+import { z } from "zod";
+
+// Validation schema for tournament registration
+const registrationSchema = z.object({
+  player_name: z.string()
+    .trim()
+    .min(1, "Player name is required")
+    .max(100, "Player name must be less than 100 characters"),
+  phone_number: z.string()
+    .trim()
+    .regex(/^[+]?[0-9\s()-]{7,20}$/, "Please enter a valid phone number"),
+  email: z.string()
+    .trim()
+    .email("Please enter a valid email address")
+    .optional()
+    .or(z.literal("")),
+});
 
 export function TournamentsSection() {
   const { toast } = useToast();
@@ -18,14 +35,32 @@ export function TournamentsSection() {
   const [playerName, setPlayerName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationErrors({});
 
-    if (!selectedTournament || !playerName || !phoneNumber) {
+    if (!selectedTournament) return;
+
+    // Client-side validation
+    const validation = registrationSchema.safeParse({
+      player_name: playerName,
+      phone_number: phoneNumber,
+      email: email || undefined,
+    });
+
+    if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        errors[field] = err.message;
+      });
+      setValidationErrors(errors);
+
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "Validation Error",
+        description: Object.values(errors)[0],
         variant: "destructive",
       });
       return;
@@ -34,9 +69,9 @@ export function TournamentsSection() {
     try {
       await registerMutation.mutateAsync({
         tournament_id: selectedTournament.id,
-        player_name: playerName,
-        phone_number: phoneNumber,
-        email: email || null,
+        player_name: playerName.trim(),
+        phone_number: phoneNumber.trim(),
+        email: email.trim() || null,
       });
 
       toast({
@@ -48,13 +83,32 @@ export function TournamentsSection() {
       setPlayerName("");
       setPhoneNumber("");
       setEmail("");
-    } catch (error) {
-      toast({
-        title: "Registration Failed",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      setValidationErrors({});
+    } catch (error: any) {
+      const errorMessage = error.message || "";
+      
+      if (errorMessage.includes("Invalid")) {
+        toast({
+          title: "Validation Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: "Something went wrong. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
+  };
+
+  const handleClose = () => {
+    setSelectedTournament(null);
+    setPlayerName("");
+    setPhoneNumber("");
+    setEmail("");
+    setValidationErrors({});
   };
 
   if (isLoading) {
@@ -185,7 +239,7 @@ export function TournamentsSection() {
         )}
 
         {/* Registration Modal */}
-        <Dialog open={!!selectedTournament} onOpenChange={() => setSelectedTournament(null)}>
+        <Dialog open={!!selectedTournament} onOpenChange={handleClose}>
           <DialogContent className="bg-card border-border/50 max-w-md">
             <DialogHeader>
               <DialogTitle className="font-serif text-2xl text-foreground">
@@ -215,11 +269,15 @@ export function TournamentsSection() {
                     <Input
                       type="text"
                       value={playerName}
-                      onChange={(e) => setPlayerName(e.target.value)}
+                      onChange={(e) => setPlayerName(e.target.value.slice(0, 100))}
                       placeholder="Enter your full name"
-                      className="bg-muted/50 border-border/50 mt-2"
+                      className={`bg-muted/50 border-border/50 mt-2 ${validationErrors.player_name ? 'border-destructive' : ''}`}
                       required
+                      maxLength={100}
                     />
+                    {validationErrors.player_name && (
+                      <p className="text-destructive text-xs mt-1">{validationErrors.player_name}</p>
+                    )}
                   </div>
 
                   <div>
@@ -227,11 +285,15 @@ export function TournamentsSection() {
                     <Input
                       type="tel"
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onChange={(e) => setPhoneNumber(e.target.value.slice(0, 20))}
                       placeholder="+91 XXXXX XXXXX"
-                      className="bg-muted/50 border-border/50 mt-2"
+                      className={`bg-muted/50 border-border/50 mt-2 ${validationErrors.phone_number ? 'border-destructive' : ''}`}
                       required
+                      maxLength={20}
                     />
+                    {validationErrors.phone_number && (
+                      <p className="text-destructive text-xs mt-1">{validationErrors.phone_number}</p>
+                    )}
                   </div>
 
                   <div>
@@ -241,8 +303,11 @@ export function TournamentsSection() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="your@email.com"
-                      className="bg-muted/50 border-border/50 mt-2"
+                      className={`bg-muted/50 border-border/50 mt-2 ${validationErrors.email ? 'border-destructive' : ''}`}
                     />
+                    {validationErrors.email && (
+                      <p className="text-destructive text-xs mt-1">{validationErrors.email}</p>
+                    )}
                   </div>
 
                   <Button
