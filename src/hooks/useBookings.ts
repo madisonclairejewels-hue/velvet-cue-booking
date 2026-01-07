@@ -125,14 +125,14 @@ export function useCreateBooking() {
 
   return useMutation({
     mutationFn: async (booking: Omit<Booking, "id" | "created_at" | "updated_at" | "status">) => {
-      const { data, error } = await supabase
+      // IMPORTANT: public users (anon) are allowed to INSERT, but are NOT allowed to SELECT
+      // from the bookings table (PII). Therefore we must not request "returning representation".
+      const { error } = await supabase
         .from("bookings")
-        .insert({ ...booking, status: "confirmed" })
-        .select()
-        .single();
+        .insert({ ...booking, status: "confirmed" });
 
       if (error) throw error;
-      return data;
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
