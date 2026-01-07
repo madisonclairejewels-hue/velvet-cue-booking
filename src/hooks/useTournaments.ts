@@ -133,14 +133,14 @@ export function useRegisterForTournament() {
 
   return useMutation({
     mutationFn: async (registration: Omit<TournamentRegistration, "id" | "created_at">) => {
-      const { data, error } = await supabase
+      // Public users can INSERT but cannot SELECT from tournament_registrations (PII)
+      // So we don't request the inserted row back
+      const { error } = await supabase
         .from("tournament_registrations")
-        .insert(registration)
-        .select()
-        .single();
+        .insert(registration);
 
       if (error) throw error;
-      return data;
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tournament-registrations"] });
